@@ -783,6 +783,10 @@ from flask import Flask, request, abort
 
 app = Flask(__name__)
 
+@app.route('/')
+def home():
+    return "Bot is running", 200
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
