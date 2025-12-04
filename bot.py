@@ -288,18 +288,23 @@ def format_msg(stock_name: str, results: list, target_date: datetime.date):
         if is_continuous:
             time_text = "⏰ 🔄 مستمر طوال اليوم"
         else:
+            # New Time Format: 10:00 AM - 02:00 PM (Target: 12:00 PM)
             time_text = (
-                f"⏰ {start_time.strftime('%I:%M %p')} ➔ "
-                f"🎯 {exact_time.strftime('%I:%M %p')} ➔ "
-                f"{end_time.strftime('%I:%M %p')}"
+                f"⏰ {start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')} "
+                f"(الذروة: {exact_time.strftime('%I:%M %p')})"
             )
 
+        # Integrated Meaning into Status/Description
+        # Example: "Square (Restriction)"
+        aspect_desc = f"{aspect}"
+        if a_meaning:
+            aspect_desc += f" ({a_meaning})"
+
         block = (
-            f"🔹 **{tplanet}** (العبور) {aspect} {icon} **{nplanet}** (السهم)\n"
+            f"🔹 **{tplanet}** (العبور) {aspect_desc} {icon} **{nplanet}** (السهم)\n"
             f"   🔸 {transit_pos}\n"
             f"   🔸 {nplanet} في {natal_sign} {natal_deg}°\n"
-            f"   💡 **المعنى:** {p_meaning} | {a_meaning}\n"
-            f"   📝 **الحالة:** {note}\n"
+            f"   � **الحالة:** {note} {p_meaning}\n" # Combined Note + Planet Meaning
             f"   ⏱️ **الفريم:** {TRANSIT_TIMEFRAMES.get(tplanet, '-')}\n"
             f"   {time_text}\n\n"
         )
@@ -326,7 +331,7 @@ def format_transit_msg(target_datetime: datetime.datetime):
     if GLOBAL_TRANSIT_DF is None:
         return "⚠️ لا توجد بيانات عبور محملة."
 
-    positions = get_current_planetary_positions(GLOBAL_TRANSIT_DF, target_datetime)
+    # positions = get_current_planetary_positions(GLOBAL_TRANSIT_DF, target_datetime) # Removed as per request
     transit_aspects = calc_transit_to_transit(GLOBAL_TRANSIT_DF, target_datetime)
 
     header = (
@@ -335,12 +340,9 @@ def format_transit_msg(target_datetime: datetime.datetime):
         f"⏰ {target_datetime.strftime('%H:%M')}\n\n"
     )
 
-    positions_text = "📍 **مواقع الكواكب:**\n"
-    for planet_name, data in positions.items():
-        planet_pos = format_planet_position(planet_name, data["degree"])
-        positions_text += f"{data['icon']} {planet_pos}\n"
+    # Removed Positions Section
 
-    aspects_text = "\n──────────────\n🔥 **العلاقات النشطة (Transit to Transit):**\n\n"
+    aspects_text = "──────────────\n🔥 **العلاقات النشطة (Transit to Transit):**\n\n"
     if not transit_aspects:
         aspects_text += "لا توجد علاقات نشطة في الوقت الحالي.\n"
     else:
@@ -355,7 +357,7 @@ def format_transit_msg(target_datetime: datetime.datetime):
             )
             aspects_text += block
 
-    return header + positions_text + aspects_text
+    return header + aspects_text
 
 def format_moon_hourly_msg(hourly_results, sign_name, moon_deg, element, target_date):
     """تنسيق رسالة المسح الساعي للقمر."""
@@ -630,15 +632,24 @@ def handle_query(call):
 
                 transit_msg = format_transit_msg(target_time)
                 
-                # Calculate Next/Prev Hour
-                next_hour = target_time + datetime.timedelta(hours=1)
-                prev_hour = target_time - datetime.timedelta(hours=1)
-                
+                # Calculate Intervals
+                intervals = [1, 3, 6, 12]
                 markup = InlineKeyboardMarkup()
-                markup.row(
-                    InlineKeyboardButton("⬅️ -1 ساعة", callback_data=f"menu:transits:{prev_hour.strftime('%Y-%m-%d %H:%M')}"),
-                    InlineKeyboardButton("1 ساعة ➡️", callback_data=f"menu:transits:{next_hour.strftime('%Y-%m-%d %H:%M')}")
-                )
+                
+                # Positive Intervals (Next)
+                row_next = []
+                for h in intervals:
+                    next_t = target_time + datetime.timedelta(hours=h)
+                    row_next.append(InlineKeyboardButton(f"+{h}س", callback_data=f"menu:transits:{next_t.strftime('%Y-%m-%d %H:%M')}"))
+                markup.row(*row_next)
+
+                # Negative Intervals (Prev)
+                row_prev = []
+                for h in intervals:
+                    prev_t = target_time - datetime.timedelta(hours=h)
+                    row_prev.append(InlineKeyboardButton(f"-{h}س", callback_data=f"menu:transits:{prev_t.strftime('%Y-%m-%d %H:%M')}"))
+                markup.row(*row_prev)
+
                 markup.row(InlineKeyboardButton("🔄 تحديث (الآن)", callback_data="menu:transits"))
                 markup.row(InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="main_menu"))
                 
