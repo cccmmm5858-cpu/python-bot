@@ -129,6 +129,10 @@ def calc_aspects(stock_name: str, target_date: datetime.date):
     for _, srow in sdf.iterrows():
         for _, trow in tdf.iterrows():
             for t_name, col, t_icon in TRANSIT_PLANETS:
+                # 1. Exclude Moon from Stock Analysis
+                if t_name in ["Moon", "القمر"]:
+                    continue
+
                 if col not in trow or pd.isna(trow[col]):
                     continue
 
@@ -142,23 +146,34 @@ def calc_aspects(stock_name: str, target_date: datetime.date):
                 asp, exact, dev, icon, asp_type, is_applying = get_aspect_details(ang)
 
                 if asp:
-                    # 1. Node Logic: Ignore Opposition if Node involved
+                    # 2. Node Logic: Ignore Opposition if Node involved
                     if "Node" in t_name or "العقدة" in t_name:
                         if exact == 180:  # Opposition
                             continue
 
-                    # 2. Action/Reaction Logic
-                    final_type = asp_type
-                    reaction_note = ""
+                    # 3. Activation Window (1 Degree Rule) & Action/Reaction
+                    ar_status, ar_desc = get_action_reaction_status(dev, is_applying)
+                    if not ar_status: # Skip if deviation > 1.0
+                        continue
 
-                    # إذا الزاوية شبه تامة (انحراف صغير جداً) نعكس المعنى
-                    if dev < 0.1:
-                        if asp_type == "negative":
-                            final_type = "positive"
-                            reaction_note = " (ردة فعل إيجابية 🟢)"
-                        elif asp_type == "positive":
-                            final_type = "negative"
-                            reaction_note = " (ردة فعل سلبية 🔴)"
+                    # 4. Apply Meanings & Special Rules
+                    planet_meaning = PLANET_MEANINGS.get(t_name, "")
+                    aspect_meaning = ASPECT_MEANINGS.get(asp, "")
+                    
+                    # Neptune Rule
+                    neptune_note = check_neptune_rule(t_name, asp, asp_type)
+                    
+                    # Mars Rule
+                    mars_note = check_mars_rule(t_name, asp)
+                    
+                    # Entry Signal
+                    entry_signal = get_entry_signal(asp, dev, is_applying)
+
+                    # Construct Note
+                    full_note = f"{ar_status}"
+                    if neptune_note: full_note += f" | {neptune_note}"
+                    if mars_note: full_note += f" | {mars_note}"
+                    if entry_signal: full_note += f" | {entry_signal}"
 
                     results.append({
                         "السهم": srow["السهم"],
@@ -169,12 +184,15 @@ def calc_aspects(stock_name: str, target_date: datetime.date):
                         "العلاقة": asp,
                         "الزاوية التامة": exact,
                         "الرمز": icon,
-                        "النوع": final_type,
-                        "ملاحظة": reaction_note,
+                        "النوع": asp_type,
+                        "ملاحظة": full_note,
+                        "معنى_الكوكب": planet_meaning,
+                        "معنى_الزاوية": aspect_meaning,
                         "درجة المولد": natal_deg,
                         "درجة العبور": transit_deg,
                         "الوقت": trow["Datetime"],
-                        "deviation": dev
+                        "deviation": dev,
+                        "is_applying": is_applying
                     })
 
     return results, sdf["السهم"].iloc[0]
@@ -254,6 +272,11 @@ def format_msg(stock_name: str, results: list, target_date: datetime.date):
         t_deg = best_row['درجة العبور']
         n_deg = best_row['درجة المولد']
         icon = best_row['الرمز']
+        
+        # New Fields
+        p_meaning = best_row.get('معنى_الكوكب', '')
+        a_meaning = best_row.get('معنى_الزاوية', '')
+        note = best_row.get('ملاحظة', '')
 
         transit_pos = format_planet_position(tplanet, t_deg)
         natal_sign = get_sign_name(n_deg)
@@ -274,8 +297,9 @@ def format_msg(stock_name: str, results: list, target_date: datetime.date):
             f"🔹 **{tplanet}** (العبور) {aspect} {icon} **{nplanet}** (السهم)\n"
             f"   🔸 {transit_pos}\n"
             f"   🔸 {nplanet} في {natal_sign} {natal_deg}°\n"
+            f"   💡 **المعنى:** {p_meaning} | {a_meaning}\n"
+            f"   📝 **الحالة:** {note}\n"
             f"   ⏱️ **الفريم:** {TRANSIT_TIMEFRAMES.get(tplanet, '-')}\n"
-            f"   📝 **الحالة:** {best_row.get('ملاحظة', '')}\n"
             f"   {time_text}\n\n"
         )
         lines.append(block)
@@ -374,10 +398,26 @@ def get_main_menu():
     markup.row(InlineKeyboardButton("📊 تحليل الأسهم", callback_data="menu:stocks"))
     markup.row(InlineKeyboardButton("🌍 الزمن العام", callback_data="menu:transits"))
     markup.row(InlineKeyboardButton("🌙 المضاربة اليومية (القمر)", callback_data="menu:moon"))
+    markup.row(InlineKeyboardButton("🏭 فلترة القطاعات (جديد)", callback_data="menu:sectors"))
     
-    # زر تحديث البيانات (للمشرفين فقط - اختياري)
-    # markup.row(InlineKeyboardButton("🔄 تحديث البيانات", callback_data="admin:reload"))
+    return markup
+
+def get_sector_keyboard():
+    """لوحة مفاتيح لاختيار البرج/القطاع."""
+    markup = InlineKeyboardMarkup()
+    buttons = []
+    # Using Arabic keys from SECTOR_MAPPING
+    arabic_signs = [k for k in SECTOR_MAPPING.keys() if not k[0].isupper()] 
     
+    for sign in arabic_signs:
+        sector_name = SECTOR_MAPPING[sign].split(" ")[1] # Take first word of sector
+        btn_text = f"{sign} ({sector_name})"
+        buttons.append(InlineKeyboardButton(btn_text, callback_data=f"sector:{sign}"))
+    
+    for i in range(0, len(buttons), 2):
+        markup.row(*buttons[i:i+2])
+        
+    markup.row(InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="main_menu"))
     return markup
 
 def get_stock_keyboard():
@@ -574,11 +614,33 @@ def handle_query(call):
                 if GLOBAL_TRANSIT_DF is None:
                     bot.answer_callback_query(call.id, "⚠️ لا توجد بيانات عبور محملة!")
                     return
-                now = datetime.datetime.now() + datetime.timedelta(hours=3)
-                transit_msg = format_transit_msg(now)
+                
+                # Default to current time + 3 hours (KSA)
+                target_time = datetime.datetime.now() + datetime.timedelta(hours=3)
+                
+                # Check if time shift is requested
+                if len(data) >= 3:
+                    try:
+                        # Format: menu:transits:YYYY-MM-DD HH:MM
+                        time_str = data[2]
+                        target_time = datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        pass
+
+                transit_msg = format_transit_msg(target_time)
+                
+                # Calculate Next/Prev Hour
+                next_hour = target_time + datetime.timedelta(hours=1)
+                prev_hour = target_time - datetime.timedelta(hours=1)
+                
                 markup = InlineKeyboardMarkup()
-                markup.row(InlineKeyboardButton("🔄 تحديث", callback_data="menu:transits"))
+                markup.row(
+                    InlineKeyboardButton("⬅️ -1 ساعة", callback_data=f"menu:transits:{prev_hour.strftime('%Y-%m-%d %H:%M')}"),
+                    InlineKeyboardButton("1 ساعة ➡️", callback_data=f"menu:transits:{next_hour.strftime('%Y-%m-%d %H:%M')}")
+                )
+                markup.row(InlineKeyboardButton("🔄 تحديث (الآن)", callback_data="menu:transits"))
                 markup.row(InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="main_menu"))
+                
                 try:
                     bot.edit_message_text(
                         chat_id=call.message.chat.id,
@@ -761,6 +823,18 @@ def handle_query(call):
             bot.answer_callback_query(call.id, "✅ تم إعادة تحميل البيانات.")
             return
 
+        # فلترة القطاعات
+        if menu_type == "sectors":
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="🏭 **اختر البرج لعرض أسهم القطاع المرتبط به:**",
+                reply_markup=get_sector_keyboard(),
+                parse_mode="Markdown",
+            )
+            answer()
+            return
+
         # أمر غير معروف
         bot.answer_callback_query(call.id, "⚠️ أمر غير معروف.")
     except Exception as e:
@@ -770,6 +844,78 @@ def handle_query(call):
         except Exception:
             pass
         return
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("sector:"))
+def handle_sector_query(call):
+    if call.from_user.id not in ALLOWED_USERS:
+        return
+
+    sign = call.data.split(":")[1]
+    sector_desc = SECTOR_MAPPING.get(sign, "غير معروف")
+    
+    if GLOBAL_STOCK_DF is None:
+        bot.answer_callback_query(call.id, "⚠️ لا توجد بيانات أسهم.")
+        return
+
+    # Filter stocks where Sun is in the selected Sign
+    # Assuming 'الكوكب' == 'Sun' or 'الشمس' and 'البرج' == sign
+    # But user said: "Stocks whose DATES are Scorpio" -> implies Sun Sign.
+    # In the Excel, we have 'البرج' column. We will filter by that.
+    
+    # Filter for stocks in this sign (based on their Natal Sun/Sign column)
+    # Note: The Excel structure has "البرج" for each row. 
+    # We assume the main "Sign" of the stock is what's listed.
+    
+    mask = GLOBAL_STOCK_DF["البرج"] == sign
+    sector_stocks = GLOBAL_STOCK_DF[mask]["السهم"].unique()
+    
+    if len(sector_stocks) == 0:
+        bot.answer_callback_query(call.id, f"⚠️ لا توجد أسهم في برج {sign}.")
+        return
+
+    msg = (
+        f"🏭 **قطاع: {sector_desc}**\n"
+        f"البرج: {sign}\n"
+        f"عدد الأسهم: {len(sector_stocks)}\n\n"
+        f"──────────────\n"
+    )
+    
+    # Analyze each stock briefly (Current Day)
+    target_date = datetime.date.today()
+    
+    found_opps = False
+    for stock in sector_stocks:
+        results, _ = analyze_stock(stock, target_date)
+        if results:
+            found_opps = True
+            msg += f"🔹 **{stock}**\n"
+            for res in results[:2]: # Show top 2 aspects only to keep it short
+                msg += f"   - {res['كوكب العبور']} {res['العلاقة']} {res['كوكب السهم']} ({res['ملاحظة']})\n"
+            msg += "\n"
+            
+    if not found_opps:
+        msg += "لا توجد فرص فلكية نشطة لهذا القطاع اليوم."
+
+    markup = InlineKeyboardMarkup()
+    markup.row(InlineKeyboardButton("🔙 قائمة القطاعات", callback_data="menu:sectors"))
+    markup.row(InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="main_menu"))
+
+    try:
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=msg[:4000],
+            reply_markup=markup,
+            parse_mode="Markdown",
+        )
+    except Exception:
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=msg[:4000].replace("*", ""),
+            reply_markup=markup
+        )
+
 
 # ==========================================
 # 9. التشغيل
