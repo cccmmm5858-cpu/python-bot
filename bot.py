@@ -775,12 +775,56 @@ def handle_query(call):
 # 9. التشغيل
 # ==========================================
 
+# ==========================================
+# 9. تشغيل الويب هوك (Webhook) مع Flask
+# ==========================================
+
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    else:
+        abort(403)
+
 if __name__ == "__main__":
     load_data_once()
-    print("BOT RUNNING... (Press Ctrl+C to stop)")
-    while True:
+    
+    # إعدادات الويب هوك
+    # إعدادات الويب هوك
+    # Render يوفر المتغير RENDER_EXTERNAL_URL تلقائياً
+    render_url = os.environ.get('RENDER_EXTERNAL_URL') 
+    
+    if render_url:
+        # إزالة الشرطة المائلة في النهاية إذا وجدت
+        if render_url.endswith('/'):
+            render_url = render_url[:-1]
+            
+        WEBHOOK_URL = f"{render_url}/webhook"
+        print(f"Setting webhook to: {WEBHOOK_URL}")
+        
+        # محاولة حذف الويب هوك القديم أولاً لتجنب التعارض
         try:
-            bot.polling(none_stop=True, interval=0, timeout=20)
+            bot.remove_webhook()
+            time.sleep(1)
         except Exception as e:
-            print(f"⚠️ {e}")
-            time.sleep(5)
+            print(f"Warning: Failed to remove webhook: {e}")
+            
+        bot.set_webhook(url=WEBHOOK_URL)
+    else:
+        # إذا لم نكن على Render (تجربة محلية)، يمكن استخدام Polling
+        print("Running locally (Polling)...")
+        bot.remove_webhook()
+        bot.infinity_polling()
+        sys.exit(0)
+
+    # تشغيل سيرفر Flask
+    print("Starting Flask server...")
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
