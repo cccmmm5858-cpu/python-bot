@@ -14,6 +14,7 @@ from dignity import get_sign_name, get_sign_degree, format_planet_position
 from rating import calculate_opportunity_rating
 from transits import calc_transit_to_transit, get_current_planetary_positions, angle_diff, get_aspect_details
 from moon_trading import check_moon_intraday, scan_moon_day
+from astro_rules import *
 
 # ==========================================
 # 1. إعدادات البوت
