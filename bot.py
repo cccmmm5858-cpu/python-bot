@@ -794,8 +794,22 @@ def handle_query(call):
                 bot.answer_callback_query(call.id, "⚠️ اسم السهم غير محدد.")
                 return
             
-            # تحديد التاريخ (اليوم الحالي)
-            target_date = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            # تحديد التاريخ (اليوم الحالي أو من البيانات)
+            if len(data) >= 3:
+                try:
+                    date_str = data[2]
+                    target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError:
+                    target_date = datetime.datetime.now()
+            else:
+                target_date = datetime.datetime.now()
+
+            # توحيد الوقت
+            target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # تواريخ التنقل
+            prev_date = target_date - datetime.timedelta(days=1)
+            next_date = target_date + datetime.timedelta(days=1)
             
             moon_source = GLOBAL_MOON_DF if GLOBAL_MOON_DF is not None else GLOBAL_TRANSIT_DF
             if moon_source is None:
@@ -807,7 +821,7 @@ def handle_query(call):
             if sdf.empty:
                 bot.answer_callback_query(call.id, "⚠️ لا توجد بيانات لهذا السهم.")
                 return
-
+ 
             # مسح ساعي
             try:
                 hourly_results = scan_moon_day(sdf, moon_source, target_date)
@@ -820,12 +834,23 @@ def handle_query(call):
                     element = first_entry['element']
                 else:
                     # إذا لم توجد نتائج، نحسب موقع القمر الحالي فقط للعرض
-                    sign_name, moon_deg, _ = get_moon_position_interpolated(moon_source, datetime.datetime.now())
-                    element = "" # يمكن حسابه لكن ليس ضرورياً إذا لم توجد نتائج
+                    sign_name, moon_deg, _ = get_moon_position_interpolated(moon_source, target_date + datetime.timedelta(hours=12))
+                    
+                    # Calculate element
+                    element = ""
+                    if sign_name in ["الحمل", "الأسد", "القوس"]: element = "ناري 🔥"
+                    elif sign_name in ["الثور", "العذراء", "الجدي"]: element = "ترابي ⛰️"
+                    elif sign_name in ["الجوزاء", "الميزان", "الدلو"]: element = "هوائي 💨"
+                    elif sign_name in ["السرطان", "العقرب", "الحوت"]: element = "مائي 💧"
                 
                 moon_msg = format_moon_hourly_msg(hourly_results, sign_name, moon_deg, element, target_date)
                 
                 markup = InlineKeyboardMarkup()
+                # أزرار التنقل
+                markup.row(
+                    InlineKeyboardButton("⬅️ السابق", callback_data=f"moonstock:{stock_name}:{prev_date.strftime('%Y-%m-%d')}"),
+                    InlineKeyboardButton("التالي ➡️", callback_data=f"moonstock:{stock_name}:{next_date.strftime('%Y-%m-%d')}")
+                )
                 markup.row(
                     InlineKeyboardButton("🔙 رجوع للسهم", callback_data=f"view:{stock_name}:{target_date.strftime('%Y-%m-%d')}")
                 )
