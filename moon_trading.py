@@ -111,15 +111,10 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
     seen_opportunities = set() # لتجنب التكرار
     
     for _, row in stock_df.iterrows():
-        stock_planet_deg = row["الدرجة الفلكية"]
-        stock_name = row["السهم"]
-        # تخطي مؤشرات (مثل "تاسي") لأنها ليست أسهم فعلية
-        if normalize_stock_name(stock_name) == "تاسي":
-            continue
-        planet_name = row["الكوكب"]
-        
-        # تخطي إذا كانت البيانات ناقصة
-        if pd.isna(stock_name) or pd.isna(planet_name):
+        try:
+            stock_planet_deg = float(row["الدرجة الفلكية"])
+            moon_abs_deg = float(moon_abs_deg)
+        except (ValueError, TypeError):
             continue
 
         angle = angle_diff(moon_abs_deg, stock_planet_deg)
