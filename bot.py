@@ -662,13 +662,20 @@ def handle_query(call):
                         parse_mode="Markdown",
                     )
                 except Exception as e:
-                    print(f"ERROR: Failed to send transit message: {e}")
-                    bot.edit_message_text(
-                        chat_id=call.message.chat.id,
-                        message_id=call.message.message_id,
-                        text=transit_msg.replace("*", "").replace("`", ""),
-                        reply_markup=markup
-                    )
+                    if "message is not modified" in str(e):
+                        pass # Ignore if content is the same
+                    else:
+                        print(f"ERROR: Failed to send transit message: {e}")
+                        # Fallback without markdown if parsing fails
+                        try:
+                            bot.edit_message_text(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                text=transit_msg.replace("*", "").replace("`", ""),
+                                reply_markup=markup
+                            )
+                        except Exception:
+                            pass
                 answer()
                 return
 
