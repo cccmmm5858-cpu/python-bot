@@ -111,6 +111,9 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
     seen_opportunities = set() # لتجنب التكرار
     
     for _, row in stock_df.iterrows():
+        stock_name = row["السهم"]
+        planet_name = row["الكوكب"]
+        
         try:
             stock_planet_deg = float(row["الدرجة الفلكية"])
             moon_abs_deg = float(moon_abs_deg)
