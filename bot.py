@@ -13,7 +13,7 @@ from config import TRANSIT_PLANETS, TRANSIT_TIMEFRAMES, ZODIAC_SIGNS, ASPECTS, T
 from dignity import get_sign_name, get_sign_degree, format_planet_position
 from rating import calculate_opportunity_rating
 from transits import calc_transit_to_transit, get_current_planetary_positions, angle_diff, get_aspect_details
-from moon_trading import check_moon_intraday, scan_moon_day
+from moon_trading import check_moon_intraday, scan_moon_day, get_moon_position_interpolated
 from astro_rules import *
 
 # ==========================================
@@ -723,7 +723,6 @@ def handle_query(call):
                         element = first_entry['element']
                     else:
                         # في حال عدم وجود فرص، نحسب موقع القمر الحالي للعرض فقط
-                        from moon_trading import get_moon_position_interpolated
                         sign_name, moon_deg, _ = get_moon_position_interpolated(moon_source, target_date + datetime.timedelta(hours=12))
                         element = "" # يمكن تحسينه لاحقاً
 
