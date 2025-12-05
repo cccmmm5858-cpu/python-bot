@@ -632,21 +632,23 @@ def handle_query(call):
 
                 transit_msg = format_transit_msg(target_time)
                 
-                # Calculate Intervals
+                # Calculate Intervals with Snap to Hour
                 intervals = [1, 3, 6, 12]
                 markup = InlineKeyboardMarkup()
                 
                 # Positive Intervals (Next)
                 row_next = []
                 for h in intervals:
-                    next_t = target_time + datetime.timedelta(hours=h)
+                    # Add hours then snap to top of hour (minute=0)
+                    next_t = (target_time + datetime.timedelta(hours=h)).replace(minute=0, second=0, microsecond=0)
                     row_next.append(InlineKeyboardButton(f"+{h}س", callback_data=f"menu:transits:{next_t.strftime('%Y-%m-%d %H:%M')}"))
                 markup.row(*row_next)
 
                 # Negative Intervals (Prev)
                 row_prev = []
                 for h in intervals:
-                    prev_t = target_time - datetime.timedelta(hours=h)
+                    # Subtract hours then snap to top of hour (minute=0)
+                    prev_t = (target_time - datetime.timedelta(hours=h)).replace(minute=0, second=0, microsecond=0)
                     row_prev.append(InlineKeyboardButton(f"-{h}س", callback_data=f"menu:transits:{prev_t.strftime('%Y-%m-%d %H:%M')}"))
                 markup.row(*row_prev)
 
