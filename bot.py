@@ -16,6 +16,13 @@ from transits import calc_transit_to_transit, get_current_planetary_positions, a
 from moon_trading import check_moon_intraday, scan_moon_day, get_moon_position_interpolated
 from astro_rules import *
 
+# Web App Imports
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from models import db, User
+from werkzeug.utils import secure_filename
+from dignity import get_sign_element, get_planet_dignity
+
 # ==========================================
 # 1. إعدادات البوت
 # ==========================================
@@ -979,10 +986,185 @@ def handle_sector_query(call):
 from flask import Flask, request, abort
 
 app = Flask(__name__)
+app.secret_key = 'super_secret_key_astro_bot_2025'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///astro.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.getcwd()
+
+# تهيئة قاعدة البيانات وتسجيل الدخول
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# إنشاء قاعدة البيانات والحساب الافتراضي عند التشغيل
+with app.app_context():
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        admin = User(username='admin', is_admin=True)
+        admin.set_password('123')
+        db.session.add(admin)
+        db.session.commit()
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user)
+
+# --- Helper Functions for Web ---
+def format_time_ar(dt):
+    return dt.strftime("%I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً")
+
+def calculate_ai_score(results):
+    """حساب تقييم الذكاء الاصطناعي (مقتبس من المنطق القديم)"""
+    if not results: return "⚪", "text-gray-400", 0
+    
+    # استخدام دالة التقييم الموجودة في rating.py
+    stars, text, score = calculate_opportunity_rating(results)
+    
+    # تحويل النتيجة الرقمية إلى تنسيق الويب
+    if score >= 10: return "⭐⭐⭐⭐⭐ (فرصة ذهبية!)", "text-green-400", 5
+    if score >= 5: return "⭐⭐⭐⭐ (قوية جداً)", "text-green-500", 4
+    if score >= 2: return "⭐⭐⭐ (إيجابية)", "text-blue-400", 3
+    if score >= -2: return "⭐⭐ (متباينة/حيادية)", "text-yellow-400", 2
+    return "⭐ (سلبية/حذر)", "text-red-500", 1
+
+# --- Web Routes ---
 
 @app.route('/')
-def home():
-    return "Bot is running", 200
+@login_required
+def index():
+    if GLOBAL_STOCK_DF is None: load_data_once()
+    filter_rating = request.args.get('rating')
+    stocks_data = []
+    
+    if GLOBAL_STOCK_DF is not None:
+        unique_stocks = sorted(GLOBAL_STOCK_DF["السهم"].unique())
+        today = datetime.datetime.now().date()
+        
+        for stock in unique_stocks:
+            # استخدام analyze_stock الموجودة في البوت
+            results, _ = analyze_stock(stock, today)
+            
+            # حساب التقييم
+            rating_text, rating_color, rating_val = calculate_ai_score(results)
+            
+            if filter_rating == 'gold' and rating_val < 5: continue
+            if filter_rating == 'strong' and rating_val < 4: continue
+            
+            stocks_data.append({
+                "name": stock, 
+                "rating_text": rating_text, 
+                "rating_color": rating_color, 
+                "rating_val": rating_val
+            })
+            
+    stocks_data.sort(key=lambda x: x['rating_val'], reverse=True)
+    return render_template('index.html', stocks=stocks_data)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('❌ اسم المستخدم أو كلمة المرور خطأ!')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/stock/<path:stock_name>')
+@login_required
+def stock_detail(stock_name):
+    if GLOBAL_STOCK_DF is None: load_data_once()
+    
+    date_str = request.args.get('date', datetime.date.today().strftime('%Y-%m-%d'))
+    try:
+        target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        target_date = datetime.date.today()
+        
+    results, real_name = analyze_stock(stock_name, target_date)
+    ai_rating, ai_color, _ = calculate_ai_score(results)
+    
+    processed_results = []
+    if results:
+        df = pd.DataFrame(results).sort_values("الوقت")
+        groups = df.groupby(["كوكب العبور", "كوكب السهم", "العلاقة"])
+        
+        for (tplanet, nplanet, aspect), g in groups:
+            start_time = g.iloc[0]["الوقت"]
+            end_time = g.iloc[-1]["الوقت"]
+            best_row = g.loc[g['deviation'].idxmin()]
+            
+            duration_hours = (end_time - start_time).total_seconds() / 3600
+            time_str = "🔄 مستمر" if duration_hours > 20 else f"{format_time_ar(start_time)} ➔ {format_time_ar(end_time)}"
+            
+            t_deg = best_row['درجة العبور']
+            t_sign = get_sign_name(t_deg)
+            
+            # Planet Status (Dignity)
+            dignity, icon = get_planet_dignity(tplanet, t_sign)
+            t_status = f" (في {dignity}ه {icon})" if dignity else ""
+            
+            processed_results.append({
+                "t_planet": tplanet, 
+                "n_planet": nplanet, 
+                "aspect": aspect,
+                "icon": best_row['الرمز'], 
+                "time_str": time_str,
+                "t_sign": t_sign, 
+                "t_deg": int(get_sign_degree(t_deg)), 
+                "t_status": t_status,
+                "n_sign": get_sign_name(best_row['درجة المولد']), 
+                "n_deg": int(get_sign_degree(best_row['درجة المولد'])),
+                "timeframe": TRANSIT_TIMEFRAMES.get(tplanet, ""),
+                "t_element": get_sign_element(t_sign),
+                "nature": PLANET_MEANINGS.get(tplanet, "") # Using PLANET_MEANINGS from astro_rules
+            })
+            
+    return render_template('stock_detail.html', 
+                         stock_name=real_name or stock_name, 
+                         date=date_str, 
+                         rating=ai_rating, 
+                         rating_color=ai_color, 
+                         results=processed_results)
+
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin():
+    if not current_user.is_admin:
+        flash('⛔ غير مصرح لك بدخول هذه الصفحة!')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        if 'stock_file' in request.files:
+            f = request.files['stock_file']
+            if f.filename != '':
+                f.save('Stock.xlsx')
+                flash('✅ تم تحديث ملف الأسهم بنجاح!')
+        
+        if 'transit_file' in request.files:
+            f = request.files['transit_file']
+            if f.filename != '':
+                f.save('Transit.xlsx')
+                flash('✅ تم تحديث ملف العبور بنجاح!')
+        
+        # Reload Data
+        load_data_once()
+        
+    return render_template('admin.html')
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

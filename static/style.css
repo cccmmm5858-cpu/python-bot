@@ -1,0 +1,51 @@
+/* هذا ملف التصميم */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+:root {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --primary: #38bdf8;
+    --accent: #fbbf24;
+    --text: #f1f5f9;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+    font-family: 'Tajawal', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.navbar {
+    background: rgba(15, 23, 42, 0.9);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; width: 100%; }
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
+.stock-card { text-align: center; text-decoration: none; color: var(--text); display: block; }
+.stock-icon { font-size: 3rem; display: block; margin-bottom: 1rem; }
+
+.form-control { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: none; }
+.btn-login { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 10px; text-align: right; border-bottom: 1px solid var(--glass-border); }
