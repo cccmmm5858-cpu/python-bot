@@ -724,7 +724,13 @@ def handle_query(call):
                     else:
                         # في حال عدم وجود فرص، نحسب موقع القمر الحالي للعرض فقط
                         sign_name, moon_deg, _ = get_moon_position_interpolated(moon_source, target_date + datetime.timedelta(hours=12))
-                        element = "" # يمكن تحسينه لاحقاً
+                        
+                        # Calculate element
+                        element = ""
+                        if sign_name in ["الحمل", "الأسد", "القوس"]: element = "ناري 🔥"
+                        elif sign_name in ["الثور", "العذراء", "الجدي"]: element = "ترابي ⛰️"
+                        elif sign_name in ["الجوزاء", "الميزان", "الدلو"]: element = "هوائي 💨"
+                        elif sign_name in ["السرطان", "العقرب", "الحوت"]: element = "مائي 💧"
 
                     moon_msg = format_moon_hourly_msg(hourly_results, sign_name, moon_deg, element, target_date)
                     

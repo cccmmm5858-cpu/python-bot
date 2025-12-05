@@ -43,8 +43,8 @@ def get_aspect_details(angle, orb=1.0):
             if (angle >= 360 - orb) or (angle == 0) or (angle <= 0 + 0.1): # Allow small margin for 0
                  return name, exact, abs(angle - exact if angle < 180 else angle - 360), icon, aspect_type, True
         else:
-            # For other aspects, we want angle to be < exact but within orb.
-            if (exact - orb) <= angle <= (exact + 0.05): # Allow small margin for exact
+            # Check if angle is within orb (both sides)
+            if abs(angle - exact) <= orb:
                 return name, exact, abs(exact - angle), icon, aspect_type, True
                 
     return None, None, None, None, None, False
