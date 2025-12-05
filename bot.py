@@ -551,7 +551,7 @@ def handle_query(call):
         bot.answer_callback_query(call.id, f"⛔ غير مصرح لك. معرفك: {call.from_user.id}", show_alert=True)
         return
 
-    data = call.data.split(":")
+    data = call.data.split(":", 2)
     action = data[0]
     print(f"DEBUG: Received callback action: {action}, data: {data}")
 
