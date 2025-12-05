@@ -991,6 +991,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///astro.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.getcwd()
 
+# Error Handler to show traceback in browser (Debugging)
+import traceback
+@app.errorhandler(500)
+def internal_error(error):
+    return f"<pre>{traceback.format_exc()}</pre>", 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return "404 - Page Not Found", 404
+
 # تهيئة قاعدة البيانات وتسجيل الدخول
 db.init_app(app)
 login_manager = LoginManager()
