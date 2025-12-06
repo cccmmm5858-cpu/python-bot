@@ -1075,6 +1075,22 @@ def index():
     stocks_data.sort(key=lambda x: x['rating_val'], reverse=True)
     return render_template('index.html', stocks=stocks_data)
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if User.query.filter_by(username=username).first():
+            flash('❌ اسم المستخدم موجود مسبقاً!')
+        else:
+            new_user = User(username=username)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            flash('✅ تم إنشاء الحساب بنجاح!')
+            return redirect(url_for('login'))
+    return render_template('register.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
