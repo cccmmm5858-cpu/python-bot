@@ -54,8 +54,14 @@
 
                 {% if opp['note'] %}
                 <div
-                    style="font-size: 0.8rem; color: #fbbf24; margin-top: 0.5rem; background: rgba(251, 191, 36, 0.1); padding: 0.3rem; border-radius: 4px;">
-                    {{ opp['note'] }}
+                    style="margin-top: 0.8rem; padding: 0.8rem; border-radius: 8px; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+                        <span style="font-size: 1.2rem;">🔔</span>
+                        <span style="font-weight: bold; color: #fbbf24;">تنبيه هام:</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.4;">
+                        {{ opp['note'] }}
+                    </div>
                 </div>
                 {% endif %}
 

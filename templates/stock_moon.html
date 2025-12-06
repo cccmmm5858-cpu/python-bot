@@ -31,6 +31,7 @@
                 <th style="padding: 1rem; text-align: right;">العلاقة</th>
                 <th style="padding: 1rem; text-align: right;">الحالة</th>
                 <th style="padding: 1rem; text-align: right;">النصيحة</th>
+                <th style="padding: 1rem; text-align: right;">ملاحظات</th>
             </tr>
         </thead>
         <tbody>
@@ -44,12 +45,15 @@
                     <span style="font-size: 0.8rem; color: #94a3b8;">({{ opp['dev'] }}°)</span>
                 </td>
                 <td style="padding: 1rem; color: #fbbf24;">{{ opp['الحالة'] }}</td>
-                <td style="padding: 1rem; font-size: 0.9rem;">
-                    {{ opp['النصيحة'] }}
+                <td style="padding: 1rem; font-size: 0.9rem;">{{ opp['النصيحة'] }}</td>
+                <td style="padding: 1rem; font-size: 0.85rem;">
                     {% if opp['note'] %}
                     <div
-                        style="color: #fbbf24; font-size: 0.8rem; margin-top: 5px; background: rgba(251, 191, 36, 0.1); padding: 2px 5px; border-radius: 4px;">
-                        {{ opp['note'] }}</div>
+                        style="background: rgba(251, 191, 36, 0.1); padding: 0.5rem; border-radius: 4px; border: 1px solid rgba(251, 191, 36, 0.2); color: #e2e8f0;">
+                        {{ opp['note'] }}
+                    </div>
+                    {% else %}
+                    <span style="color: #64748b;">-</span>
                     {% endif %}
                 </td>
             </tr>
