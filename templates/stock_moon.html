@@ -44,7 +44,14 @@
                     <span style="font-size: 0.8rem; color: #94a3b8;">({{ opp['dev'] }}°)</span>
                 </td>
                 <td style="padding: 1rem; color: #fbbf24;">{{ opp['الحالة'] }}</td>
-                <td style="padding: 1rem; font-size: 0.9rem;">{{ opp['النصيحة'] }}</td>
+                <td style="padding: 1rem; font-size: 0.9rem;">
+                    {{ opp['النصيحة'] }}
+                    {% if opp['note'] %}
+                    <div
+                        style="color: #fbbf24; font-size: 0.8rem; margin-top: 5px; background: rgba(251, 191, 36, 0.1); padding: 2px 5px; border-radius: 4px;">
+                        {{ opp['note'] }}</div>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
             {% endfor %}
