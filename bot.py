@@ -1049,10 +1049,20 @@ def calculate_ai_score(results):
 def index():
     if GLOBAL_STOCK_DF is None: load_data_once()
     filter_rating = request.args.get('rating')
+    filter_sector = request.args.get('sector')
+    
     stocks_data = []
     
     if GLOBAL_STOCK_DF is not None:
-        unique_stocks = sorted(GLOBAL_STOCK_DF["السهم"].unique())
+        # Filter by Sector if requested
+        df_to_process = GLOBAL_STOCK_DF
+        if filter_sector:
+            # Assuming 'القطاع' column exists, otherwise we might need a mapping
+            # If 'القطاع' column doesn't exist in Stock.xlsx, we might need to rely on SECTOR_MAPPING or similar
+            if "القطاع" in GLOBAL_STOCK_DF.columns:
+                 df_to_process = GLOBAL_STOCK_DF[GLOBAL_STOCK_DF["القطاع"] == filter_sector]
+        
+        unique_stocks = sorted(df_to_process["السهم"].unique())
         today = datetime.datetime.now().date()
         
         for stock in unique_stocks:
@@ -1074,6 +1084,15 @@ def index():
             
     stocks_data.sort(key=lambda x: x['rating_val'], reverse=True)
     return render_template('index.html', stocks=stocks_data)
+
+@app.route('/sectors')
+@login_required
+def sectors_page():
+    if GLOBAL_STOCK_DF is None: load_data_once()
+    sectors = []
+    if GLOBAL_STOCK_DF is not None and "القطاع" in GLOBAL_STOCK_DF.columns:
+        sectors = sorted(GLOBAL_STOCK_DF["القطاع"].dropna().unique())
+    return render_template('sectors.html', sectors=sectors)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -1216,7 +1235,7 @@ def moon_general():
     element = ""
     
     if moon_source is not None and GLOBAL_STOCK_DF is not None:
-        hourly_results = scan_moon_day(GLOBAL_STOCK_DF, moon_source, target_date)
+        hourly_results = scan_moon_day(GLOBAL_STOCK_DF, moon_source, target_date, GLOBAL_TRANSIT_DF)
         
         # Format times for display
         formatted_results = {}
@@ -1268,7 +1287,7 @@ def stock_moon(stock_name):
         # Filter for specific stock
         sdf = GLOBAL_STOCK_DF[GLOBAL_STOCK_DF["السهم"] == stock_name]
         if not sdf.empty:
-            hourly_results = scan_moon_day(sdf, moon_source, target_date)
+            hourly_results = scan_moon_day(sdf, moon_source, target_date, GLOBAL_TRANSIT_DF)
             for h, data in hourly_results.items():
                 formatted_results[h] = {
                     'time': data['time'].strftime("%I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً"),

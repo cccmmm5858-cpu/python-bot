@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="{{ url_for('index') }}" class="btn-nav">⬅️ عودة للرئيسية</a>
+</div>
+
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h1>📊 قطاعات السوق</h1>
+    <p style="color: #94a3b8;">اختر القطاع لعرض الأسهم التابعة له</p>
+</div>
+
+<div class="stock-grid">
+    {% for sector in sectors %}
+    <a href="{{ url_for('index', sector=sector) }}" class="card stock-card">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 1rem;">🏢</span>
+        <span class="stock-name">{{ sector }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

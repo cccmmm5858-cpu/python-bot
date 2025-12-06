@@ -1,12 +1,40 @@
 {% extends "layout.html" %}
 {% block content %}
+
+<!-- Dashboard Header & Actions -->
+<div style="display: flex; flex-direction: column; gap: 2rem; margin-bottom: 2rem;">
+
+    <div style="text-align: right;">
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">👋 مرحباً بك في Astro Bot</h1>
+        <p style="color: #94a3b8;">لوحة التحكم الفلكية المتقدمة</p>
+    </div>
+
+    <!-- Action Buttons (Right Aligned) -->
+    <div class="dashboard-actions">
+        <a href="{{ url_for('moon_general') }}" class="action-btn">
+            <span>🌙</span>
+            <span>مضاربة القمر</span>
+        </a>
+        <a href="{{ url_for('transits_page') }}" class="action-btn" style="border-color: #fbbf24; color: #fbbf24;">
+            <span>🌍</span>
+            <span>الزمن العام</span>
+        </a>
+        <a href="{{ url_for('sectors_page') }}" class="action-btn" style="border-color: #22c55e; color: #22c55e;">
+            <span>📊</span>
+            <span>القطاعات</span>
+        </a>
+    </div>
+
+</div>
+
 {% set gold_stocks = stocks | selectattr("rating_val", "equalto", 5) | list %}
 {% if gold_stocks %}
 <div class="card" style="background: rgba(34, 197, 94, 0.1); border-color: #22c55e;">
-    <h3 style="color: #22c55e;">🔥 فرص ذهبية اليوم!</h3>
-    <div style="display: flex; gap: 1rem; overflow-x: auto; padding-top: 1rem;">
+    <h3 style="color: #22c55e; margin-bottom: 1rem;">🔥 فرص ذهبية اليوم!</h3>
+    <div style="display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem;">
         {% for stock in gold_stocks %}
-        <a href="{{ url_for('stock_detail', stock_name=stock.name) }}" style="background: rgba(0,0,0,0.3); padding: 0.5rem 1rem; border-radius: 8px; color: white; text-decoration: none;">
+        <a href="{{ url_for('stock_detail', stock_name=stock.name) }}"
+            style="background: rgba(0,0,0,0.3); padding: 0.5rem 1rem; border-radius: 8px; color: white; text-decoration: none; white-space: nowrap;">
             {{ stock.name }} ⭐⭐⭐⭐⭐
         </a>
         {% endfor %}
@@ -15,21 +43,25 @@
 {% endif %}
 
 <div style="text-align: center; margin-bottom: 2rem;">
-    <h1>لوحة التحكم الفلكية</h1>
     <div style="margin-top: 1rem;">
-        <a href="{{ url_for('index') }}" style="color: white; margin: 0 10px; text-decoration: none; border: 1px solid #94a3b8; padding: 5px 15px; border-radius: 20px;">الكل</a>
-        <a href="{{ url_for('index', rating='gold') }}" style="color: #22c55e; margin: 0 10px; text-decoration: none; border: 1px solid #22c55e; padding: 5px 15px; border-radius: 20px;">الفرص الذهبية</a>
-        <a href="{{ url_for('index', rating='strong') }}" style="color: #38bdf8; margin: 0 10px; text-decoration: none; border: 1px solid #38bdf8; padding: 5px 15px; border-radius: 20px;">الفرص القوية</a>
+        <a href="{{ url_for('index') }}" class="btn-nav"
+            style="background: {{ 'var(--accent)' if not request.args.get('rating') else '#334155' }};">الكل</a>
+        <a href="{{ url_for('index', rating='gold') }}" class="btn-nav"
+            style="color: #22c55e; border: 1px solid #22c55e;">الفرص الذهبية</a>
+        <a href="{{ url_for('index', rating='strong') }}" class="btn-nav"
+            style="color: #38bdf8; border: 1px solid #38bdf8;">الفرص القوية</a>
     </div>
 </div>
 
 <div class="card">
     <div class="stock-grid">
         {% for stock in stocks %}
-        <a href="{{ url_for('stock_detail', stock_name=stock.name) }}" class="card stock-card">
+        <a href="{{ url_for('stock_detail', stock_name=stock.name) }}" class="card stock-card"
+            style="margin-bottom: 0;">
             <span class="stock-icon">📈</span>
             <span class="stock-name">{{ stock.name }}</span>
-            <div class="{{ stock.rating_color }}" style="font-size: 0.9rem; margin-top: 0.5rem;">{{ stock.rating_text }}</div>
+            <div class="{{ stock.rating_color }}" style="font-size: 0.9rem; margin-top: 0.5rem;">{{ stock.rating_text }}
+            </div>
         </a>
         {% else %}
         <p style="text-align: center;">لا توجد أسهم تطابق الفلتر.</p>
