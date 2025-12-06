@@ -64,6 +64,13 @@ def get_moon_position_interpolated(moon_df, target_dt):
 
     return None, 0, 0
 
+def normalize_stock_name(name):
+    """توحيد أسماء الأسهم لإزالة التكرار"""
+    if not isinstance(name, str):
+        return str(name)
+    name = name.strip()
+    # توحيد الألف
+    name = name.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
     return name
 
 def check_moon_intraday(stock_df, moon_df, target_date=None, transit_df=None):
