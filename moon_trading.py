@@ -64,16 +64,9 @@ def get_moon_position_interpolated(moon_df, target_dt):
 
     return None, 0, 0
 
-def normalize_stock_name(name):
-    """توحيد أسماء الأسهم لإزالة التكرار"""
-    if not isinstance(name, str):
-        return str(name)
-    name = name.strip()
-    # توحيد الألف
-    name = name.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
     return name
 
-def check_moon_intraday(stock_df, moon_df, target_date=None):
+def check_moon_intraday(stock_df, moon_df, target_date=None, transit_df=None):
     """
     فحص فرص المضاربة اللحظية للقمر مع أسهم القائمة
     """
@@ -81,8 +74,6 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
     if target_date is None:
         now_ksa = datetime.datetime.now() + datetime.timedelta(hours=3)
     else:
-        # إذا تم تمرير تاريخ، نستخدم منتصف ذلك اليوم كنقطة مرجعية
-        # أو نستخدمه كما هو إذا كان datetime
         if isinstance(target_date, datetime.datetime):
             now_ksa = target_date
         else:
@@ -90,9 +81,6 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
 
     sign_name, moon_deg_sign, moon_abs_deg = get_moon_position_interpolated(moon_df, now_ksa)
     
-    # Debug print for Moon position
-    print(f"DEBUG: Moon Calc - Time: {now_ksa}, Sign: {sign_name}, Deg: {moon_deg_sign}, Abs: {moon_abs_deg}")
-
     if sign_name is None:
         return [], "غير معروف", 0, ""
     
@@ -107,8 +95,20 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
     elif sign_name in ["السرطان", "العقرب", "الحوت"]:
         element = "مائي 💧"
 
+    # --- General Warnings Check ---
+    general_warnings = []
+    if transit_df is not None:
+        # Check for general transits at this hour
+        from transits import calc_transit_to_transit
+        t_aspects = calc_transit_to_transit(transit_df, now_ksa)
+        for asp in t_aspects:
+            if asp['النوع'] == 'negative':
+                general_warnings.append(f"⚠️ تحذير عام: {asp['كوكب1']} {asp['العلاقة']} {asp['كوكب2']}")
+            elif asp['النوع'] == 'positive':
+                general_warnings.append(f"✅ دعم عام: {asp['كوكب1']} {asp['العلاقة']} {asp['كوكب2']}")
+
     results = []
-    seen_opportunities = set() # لتجنب التكرار
+    seen_opportunities = set()
     
     for _, row in stock_df.iterrows():
         stock_name = row["السهم"]
@@ -122,13 +122,12 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
 
         angle = angle_diff(moon_abs_deg, stock_planet_deg)
         
-        # نستخدم دالة get_aspect_details مع orb أوسع (2.5 درجة)
-        asp_name, exact, dev, icon, asp_type, is_applying = get_aspect_details(angle, orb=2.5)
+        # Strict Rule: 1.5 degree orb for detection, but filter for <= 1.0 degree Applying
+        asp_name, exact, dev, icon, asp_type, is_applying = get_aspect_details(angle, orb=1.5)
         
-        # الشرط الجديد: تفعيل العلاقة إذا كانت في حدود 1 درجة (تفعيل أو صميم)
+        # الشرط: تفعيل (applying) والفرق <= 1 درجة
         if asp_name and is_applying and dev <= 1.0:
             
-            # مفتاح فريد للفرصة: (اسم السهم الموحد، الكوكب، العلاقة)
             norm_name = normalize_stock_name(stock_name)
             opp_key = (norm_name, planet_name, asp_name)
             
@@ -139,15 +138,12 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
             status = ""
             advice = ""
             
-            # الصميم (أقل من 0.1 درجة)
             if dev < 0.1:
                 status = "🔥 **في الصميم (Now)**"
                 if asp_type == "positive":
                     advice = "✅ **فرصة:** ردة فعل إيجابية متوقعة (ارتداد)"
                 else:
                     advice = "⚠️ **انتبه:** ردة فعل سلبية متوقعة (جني أرباح)"
-            
-            # التفعيل (بين 0.1 و 1.0 درجة)
             else:
                 status = "⏳ **تفعيل (قادم للصميم)**"
                 if asp_type == "positive":
@@ -155,8 +151,13 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
                 else:
                     advice = "📉 **سلبي:** ضغط بيعي يزداد"
             
+            # Combine warnings
+            note = ""
+            if general_warnings:
+                note = " | ".join(general_warnings)
+
             results.append({
-                "السهم": stock_name, # نبقي الاسم الأصلي للعرض
+                "السهم": stock_name,
                 "الكوكب": planet_name,
                 "العلاقة": asp_name,
                 "الرمز": icon,
@@ -166,27 +167,22 @@ def check_moon_intraday(stock_df, moon_df, target_date=None):
                 "moon_deg": moon_deg_sign,
                 "dev": dev,
                 "element": element,
-                "type": asp_type
+                "type": asp_type,
+                "note": note
             })
             
     return results, sign_name, moon_deg_sign, element
 
-def scan_moon_day(stock_df, moon_df, day_date):
+def scan_moon_day(stock_df, moon_df, day_date, transit_df=None):
     """
     مسح شامل لليوم (24 ساعة) للبحث عن الفرص
     """
     hourly_results = {}
-    
-    # التأكد من أن day_date هو بداية اليوم
     start_of_day = day_date.replace(hour=0, minute=0, second=0, microsecond=0)
     
     for h in range(24):
         current_dt = start_of_day + datetime.timedelta(hours=h)
-        
-        # نستخدم الدالة الموجودة لفحص هذه الساعة
-        # ملاحظة: check_moon_intraday تقوم بفلترة التكرار داخلياً لنفس الاستدعاء
-        # لكن هنا نريد تجميع كل الساعات. التكرار بين الساعات مقبول (لأن الزاوية قد تستمر)
-        results, sign, deg, elem = check_moon_intraday(stock_df, moon_df, current_dt)
+        results, sign, deg, elem = check_moon_intraday(stock_df, moon_df, current_dt, transit_df)
         
         if results:
             hourly_results[h] = {
