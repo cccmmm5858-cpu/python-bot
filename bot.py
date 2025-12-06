@@ -1282,6 +1282,44 @@ def stock_moon(stock_name):
                          prev_date=prev_date,
                          next_date=next_date)
 
+    return render_template('stock_moon.html',
+                         stock_name=stock_name,
+                         hourly_results=formatted_results,
+                         target_date=target_date.strftime('%Y-%m-%d'),
+                         prev_date=prev_date,
+                         next_date=next_date)
+
+@app.route('/transits')
+@login_required
+def transits_page():
+    if GLOBAL_TRANSIT_DF is None: load_data_once()
+    
+    date_str = request.args.get('date')
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            target_date = datetime.datetime.now()
+    else:
+        target_date = datetime.datetime.now()
+        
+    # Calculate Transits
+    aspects = calc_transit_to_transit(GLOBAL_TRANSIT_DF, target_date)
+    
+    # Navigation Dates
+    prev_date = (target_date - datetime.timedelta(days=1)).strftime('%Y-%m-%d %H:%M')
+    next_date = (target_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d %H:%M')
+    prev_hour = (target_date - datetime.timedelta(hours=1)).strftime('%Y-%m-%d %H:%M')
+    next_hour = (target_date + datetime.timedelta(hours=1)).strftime('%Y-%m-%d %H:%M')
+    
+    return render_template('transits.html',
+                         aspects=aspects,
+                         target_date=target_date.strftime('%Y-%m-%d %H:%M'),
+                         prev_date=prev_date,
+                         next_date=next_date,
+                         prev_hour=prev_hour,
+                         next_hour=next_hour)
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':

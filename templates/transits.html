@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h1>🌍 الزمن العام (Transit to Transit)</h1>
+
+    <!-- Time Navigation -->
+    <div
+        style="margin: 1rem 0; display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <a href="{{ url_for('transits_page', date=prev_date) }}" class="btn-nav">⬅️ -1 يوم</a>
+        <a href="{{ url_for('transits_page', date=prev_hour) }}" class="btn-nav">⬅️ -1 ساعة</a>
+
+        <span style="font-size: 1.2rem; font-weight: bold; color: #e2e8f0; direction: ltr;">
+            {{ target_date }}
+        </span>
+
+        <a href="{{ url_for('transits_page', date=next_hour) }}" class="btn-nav">+1 ساعة ➡️</a>
+        <a href="{{ url_for('transits_page', date=next_date) }}" class="btn-nav">+1 يوم ➡️</a>
+    </div>
+
+    <div style="margin-top: 0.5rem;">
+        <a href="{{ url_for('transits_page') }}" class="btn-nav" style="background: #fbbf24; color: #1e293b;">🔄
+            الآن</a>
+    </div>
+</div>
+
+{% if not aspects %}
+<div class="card" style="text-align: center;">
+    <p>⚠️ لا توجد علاقات نشطة في هذا الوقت.</p>
+</div>
+{% else %}
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse; color: #e2e8f0;">
+        <thead>
+            <tr style="border-bottom: 1px solid #475569;">
+                <th style="padding: 1rem; text-align: right;">الكوكب 1</th>
+                <th style="padding: 1rem; text-align: right;">الكوكب 2</th>
+                <th style="padding: 1rem; text-align: right;">العلاقة</th>
+                <th style="padding: 1rem; text-align: right;">الزاوية</th>
+                <th style="padding: 1rem; text-align: right;">الحالة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asp in aspects %}
+            <tr style="border-bottom: 1px solid #334155;">
+                <td style="padding: 1rem; color: #38bdf8;">
+                    {{ asp['رمز1'] }} {{ asp['كوكب1'] }}
+                    <span style="font-size: 0.8rem; color: #94a3b8; display: block;">{{ asp['درجة1']|round(2) }}°</span>
+                </td>
+                <td style="padding: 1rem; color: #38bdf8;">
+                    {{ asp['رمز2'] }} {{ asp['كوكب2'] }}
+                    <span style="font-size: 0.8rem; color: #94a3b8; display: block;">{{ asp['درجة2']|round(2) }}°</span>
+                </td>
+                <td style="padding: 1rem;">
+                    {{ asp['العلاقة'] }} {{ asp['الرمز'] }}
+                </td>
+                <td style="padding: 1rem;">
+                    {{ asp['الزاوية التامة']|int }}°
+                </td>
+                <td style="padding: 1rem;">
+                    {% if asp['النوع'] == 'positive' %}
+                    <span style="color: #22c55e;">إيجابي ✅</span>
+                    {% elif asp['النوع'] == 'negative' %}
+                    <span style="color: #ef4444;">سلبي ❌</span>
+                    {% else %}
+                    <span style="color: #fbbf24;">محايد ⚖️</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
