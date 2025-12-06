@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block content %}
+<div style="text-align: center; margin-bottom: 2rem;">
+    <h1>🌙 مضاربة القمر: {{ stock_name }}</h1>
+
+    <!-- Date Navigation -->
+    <div style="margin: 1rem 0; display: flex; justify-content: center; align-items: center; gap: 1rem;">
+        <a href="{{ url_for('stock_moon', stock_name=stock_name, date=prev_date) }}" class="btn-nav">⬅️ السابق</a>
+        <span style="font-size: 1.2rem; font-weight: bold; color: #e2e8f0;">{{ target_date }}</span>
+        <a href="{{ url_for('stock_moon', stock_name=stock_name, date=next_date) }}" class="btn-nav">التالي ➡️</a>
+    </div>
+
+    <div style="margin-top: 1rem;">
+        <a href="{{ url_for('stock_detail', stock_name=stock_name) }}" class="btn-nav" style="background: #475569;">🔙
+            العودة لتحليل السهم</a>
+    </div>
+</div>
+
+{% if not hourly_results %}
+<div class="card" style="text-align: center;">
+    <p>⚠️ لا توجد فرص مضاربة لهذا السهم اليوم.</p>
+</div>
+{% else %}
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse; color: #e2e8f0;">
+        <thead>
+            <tr style="border-bottom: 1px solid #475569;">
+                <th style="padding: 1rem; text-align: right;">الساعة</th>
+                <th style="padding: 1rem; text-align: right;">الكوكب</th>
+                <th style="padding: 1rem; text-align: right;">العلاقة</th>
+                <th style="padding: 1rem; text-align: right;">الحالة</th>
+                <th style="padding: 1rem; text-align: right;">النصيحة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hour, data in hourly_results.items() %}
+            {% for opp in data.opportunities %}
+            <tr style="border-bottom: 1px solid #334155;">
+                <td style="padding: 1rem;">{{ data.time }}</td>
+                <td style="padding: 1rem;">{{ opp['الكوكب'] }}</td>
+                <td style="padding: 1rem;">
+                    {{ opp['العلاقة'] }} {{ opp['الرمز'] }}
+                    <span style="font-size: 0.8rem; color: #94a3b8;">({{ opp['dev'] }}°)</span>
+                </td>
+                <td style="padding: 1rem; color: #fbbf24;">{{ opp['الحالة'] }}</td>
+                <td style="padding: 1rem; font-size: 0.9rem;">{{ opp['النصيحة'] }}</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

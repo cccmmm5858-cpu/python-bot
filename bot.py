@@ -1192,6 +1192,96 @@ def admin():
         
     return render_template('admin.html')
 
+@app.route('/moon')
+@login_required
+def moon_general():
+    if GLOBAL_STOCK_DF is None: load_data_once()
+    
+    date_str = request.args.get('date', datetime.date.today().strftime('%Y-%m-%d'))
+    try:
+        target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        target_date = datetime.datetime.now()
+        
+    # Normalize time
+    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    prev_date = (target_date - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    next_date = (target_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    moon_source = GLOBAL_MOON_DF if GLOBAL_MOON_DF is not None else GLOBAL_TRANSIT_DF
+    hourly_results = {}
+    sign_name = ""
+    moon_deg = 0
+    element = ""
+    
+    if moon_source is not None and GLOBAL_STOCK_DF is not None:
+        hourly_results = scan_moon_day(GLOBAL_STOCK_DF, moon_source, target_date)
+        
+        # Format times for display
+        formatted_results = {}
+        for h, data in hourly_results.items():
+            formatted_results[h] = {
+                'time': data['time'].strftime("%I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً"),
+                'opportunities': data['opportunities']
+            }
+            
+        # Get Moon Info
+        if hourly_results:
+            first_entry = next(iter(hourly_results.values()))
+            sign_name = first_entry['moon_sign']
+            moon_deg = first_entry['moon_deg']
+            element = first_entry['element']
+        else:
+            sign_name, moon_deg, _ = get_moon_position_interpolated(moon_source, target_date + datetime.timedelta(hours=12))
+            element = get_sign_element(sign_name)
+            formatted_results = {}
+
+    return render_template('moon.html', 
+                         hourly_results=formatted_results,
+                         target_date=target_date.strftime('%Y-%m-%d'),
+                         prev_date=prev_date,
+                         next_date=next_date,
+                         sign_name=sign_name,
+                         moon_deg=int(moon_deg),
+                         element=element)
+
+@app.route('/stock/<path:stock_name>/moon')
+@login_required
+def stock_moon(stock_name):
+    if GLOBAL_STOCK_DF is None: load_data_once()
+    
+    date_str = request.args.get('date', datetime.date.today().strftime('%Y-%m-%d'))
+    try:
+        target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        target_date = datetime.datetime.now()
+        
+    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    prev_date = (target_date - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    next_date = (target_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    moon_source = GLOBAL_MOON_DF if GLOBAL_MOON_DF is not None else GLOBAL_TRANSIT_DF
+    formatted_results = {}
+    
+    if moon_source is not None and GLOBAL_STOCK_DF is not None:
+        # Filter for specific stock
+        sdf = GLOBAL_STOCK_DF[GLOBAL_STOCK_DF["السهم"] == stock_name]
+        if not sdf.empty:
+            hourly_results = scan_moon_day(sdf, moon_source, target_date)
+            for h, data in hourly_results.items():
+                formatted_results[h] = {
+                    'time': data['time'].strftime("%I:%M %p").replace("AM", "صباحاً").replace("PM", "مساءً"),
+                    'opportunities': data['opportunities']
+                }
+
+    return render_template('stock_moon.html',
+                         stock_name=stock_name,
+                         hourly_results=formatted_results,
+                         target_date=target_date.strftime('%Y-%m-%d'),
+                         prev_date=prev_date,
+                         next_date=next_date)
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
